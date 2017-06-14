@@ -63,7 +63,7 @@ def is_float(token):
 
 def is_int(token):
     try:
-        i = int(token)
+        int(token)
         return True
     except ValueError:
         return False
@@ -159,8 +159,6 @@ def run_repl(global_env):
     while True:
         try:
             input_expr = input('In  [{}]: '.format(input_count))
-            #ast = parse(input_expr)
-            #output = scheme_eval(ast, global_env)
             for ast in parse(input_expr):
                 output = scheme_eval(ast, global_env)
             print('Out [{0}]: {1}'.format(input_count, output))
