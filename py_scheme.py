@@ -1,7 +1,7 @@
 import readline
 from collections import ChainMap
 from functools import reduce
-from operator import mul, add, sub, eq
+from operator import mul, add, sub, eq, truediv
 
 class SchemeSyntaxError(Exception):
     pass
@@ -101,6 +101,11 @@ def scheme_eval(expr, environment):
     elif isinstance(expr, SchemeSymbol):
         return environment[expr]
 
+    elif isinstance(expr, list) and all(isinstance(sub_expr, list) for sub_expr in expr):
+        for sub_expr in expr:
+            res = scheme_eval(sub_expr, environment)
+        return res
+
     elif isinstance(expr, list) and expr[0] == 'if':
         # (if pred x y)
         _, pred, x, y = expr
@@ -116,10 +121,13 @@ def scheme_eval(expr, environment):
 
     elif isinstance(expr, list) and expr[0] == 'let':
         # (let ((v1 e1) (v2 e2) ...) body)
+        # translated to
+        # ((lambda (v1 v2 ...) body) e1 e2 ...)
         _, binding_list, body = expr
-        binding_map = {name: scheme_eval(_expr, environment) for (name, _expr) in binding_list}
-        new_env = environment.new_child(binding_map)
-        return scheme_eval(body, new_env)
+        params, exprs = zip(*binding_list)
+        args = [scheme_eval(_expr, environment) for _expr in exprs]
+        f = SchemeFunction(params, body, environment)
+        return scheme_apply(f, args)
 
     elif isinstance(expr, list) and expr[0] == 'set!':
         # (set! var expr)
@@ -128,7 +136,7 @@ def scheme_eval(expr, environment):
 
     elif isinstance(expr, list) and expr[0] == 'define':
         # (define (sq x) (* x x))
-        _, (name, *params), body = expr
+        _, (name, *params), *body = expr
         fn = SchemeFunction(params, body, environment)
         environment[name] = SchemeFunction(params, body, environment)
 
@@ -148,7 +156,10 @@ def load_builtins():
             '+': lambda *args: reduce(add, args),
             '*': lambda *args: reduce(mul, args),
             '-': lambda *args: reduce(sub, args),
-            '=': lambda *args: reduce(eq, args)
+            '/': lambda *args: reduce(truediv, args),
+            '=': lambda x,y: x == y,
+            '>': lambda x,y: x > y,
+            '<': lambda x,y: x < y,
             }
     return builtins
 
